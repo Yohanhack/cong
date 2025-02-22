@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messagerie</title>
+    <link rel="stylesheet" href="chat.css">
+</head>
+<body class="dark">
+    <!-- Page principale -->
+    <div id="mainPage" class="page active">
+        <header class="main-header">
+            <button class="menu-btn">☰</button>
+            <h1>Govchat</h1>
+            <button class="search-btn">🔍</button>
+        </header>
+
+        <div class="chats-container">
+            <!-- Les conversations seront ajoutées ici -->
+        </div>
+    </div>
+
+    <!-- Page de conversation -->
+    <div id="chatPage" class="page">
+        <header class="chat-header">
+            <button class="back-btn">⟨</button>
+            <div class="chat-info">
+                <img src="/placeholder.svg" alt="" class="chat-avatar">
+                <div>
+                    <h2 class="chat-name"></h2>
+                    <span class="chat-status">en ligne</span>
+                </div>
+            </div>
+            <div class="chat-actions">
+                <button class="call-btn">📞</button>
+                <button class="more-btn">⋮</button>
+            </div>
+        </header>
+
+        <div class="messages-container">
+            <!-- Les messages seront ajoutés ici -->
+        </div>
+
+        <div class="message-input">
+            <button class="emoji-btn">😊</button>
+            <input type="text" placeholder="Message">
+            <button class="attach-btn">📎</button>
+            <button class="photo-btn">📷</button>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.2.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.2.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.2.0/firebase-firestore-compat.js"></script>
+    <script src="chat.js"></script>
+</body>
+</html>

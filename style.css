@@ -1,0 +1,260 @@
+/* Variables globales */
+:root {
+    --background: #1c2733;
+    --surface: #2f3b4b;
+    --primary: #8e44ad;
+    --text: #ffffff;
+    --text-secondary: #8696a0;
+    --error: #e74c3c;
+    --input-bg: #233141;
+}
+
+/* Reset et styles de base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--background);
+    color: var(--text);
+    min-height: 100vh;
+}
+
+/* Styles pour les pages d'authentification */
+.auth-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background-color: var(--background);
+}
+
+.auth-container {
+    width: 100%;
+    max-width: 400px;
+}
+
+.auth-box {
+    background-color: var(--surface);
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.auth-box h1 {
+    color: var(--text);
+    text-align: center;
+    font-size: 24px;
+    margin-bottom: 30px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 15px;
+    background-color: var(--input-bg);
+    border: none;
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 16px;
+    transition: background-color 0.3s;
+}
+
+.form-group input:focus {
+    outline: none;
+    background-color: var(--surface);
+}
+
+.form-group input::placeholder {
+    color: var(--text-secondary);
+}
+
+.btn-primary {
+    width: 100%;
+    padding: 15px;
+    background-color: var(--primary);
+    color: var(--text);
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.btn-primary:hover {
+    background-color: #9b59b6;
+}
+
+.auth-link {
+    text-align: center;
+    margin-top: 20px;
+    color: var(--text-secondary);
+}
+
+.auth-link a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.auth-link a:hover {
+    text-decoration: underline;
+}
+
+/* Messages d'erreur */
+.error-message {
+    color: var(--error);
+    font-size: 14px;
+    margin-top: 5px;
+    text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .auth-box {
+        padding: 20px;
+        margin: 10px;
+    }
+
+    .auth-box h1 {
+        font-size: 20px;
+    }
+
+    .form-group input {
+        padding: 12px;
+    }
+}
+
+/* Animation de chargement */
+.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.btn-primary.loading::after {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-left: 10px;
+    border: 2px solid var(--text);
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Style pour le champ de fonction */
+#function {
+    background-color: var(--input-bg);
+    color: var(--text);
+}
+
+/* Style pour les messages de validation */
+.validation-message {
+    font-size: 12px;
+    margin-top: 5px;
+    color: var(--text-secondary);
+}
+
+/* Style pour le message de bienvenue */
+.welcome-message {
+    text-align: center;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+/* Style pour les icônes (si nécessaire) */
+.input-icon {
+    position: relative;
+}
+
+.input-icon input {
+    padding-left: 40px;
+}
+
+.input-icon::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    opacity: 0.7;
+}
+
+/* Style spécifique pour le mode sombre */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --background: #1c2733;
+        --surface: #2f3b4b;
+        --input-bg: #233141;
+    }
+}
+
+/* Style pour les boutons sociaux (si nécessaire) */
+.social-buttons {
+    margin-top: 20px;
+}
+
+.btn-social {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 10px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--surface);
+    color: var(--text);
+    transition: background-color 0.3s;
+}
+
+.btn-social:hover {
+    background-color: var(--input-bg);
+}
+
+.btn-social img {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+}
+
+/* Style pour la séparation (si nécessaire) */
+.separator {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 20px 0;
+    color: var(--text-secondary);
+}
+
+.separator::before,
+.separator::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--text-secondary);
+}
+
+.separator span {
+    padding: 0 10px;
+}
