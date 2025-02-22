@@ -1,16 +1,17 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { 
+    getAuth, 
+    onAuthStateChanged 
+} from 'firebase/auth';
 import { 
     getFirestore, 
     collection, 
     query, 
-    where, 
-    orderBy, 
     onSnapshot,
-    addDoc,
     doc,
     setDoc,
-    serverTimestamp 
+    serverTimestamp,
+    getDocs
 } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -44,16 +45,15 @@ onAuthStateChanged(auth, async (user) => {
         // Charger les conversations
         loadChats();
     } else {
+        // Redirection vers la page de connexion si non authentifié
         window.location.href = 'login.html';
     }
 });
 
-// Charger les conversations
+// Charger tous les utilisateurs
 async function loadChats() {
-    const usersQuery = query(
-        collection(db, 'users'),
-        where('uid', '!=', currentUser.uid)
-    );
+    // Query pour obtenir TOUS les utilisateurs sauf l'utilisateur actuel
+    const usersQuery = query(collection(db, 'users'));
 
     onSnapshot(usersQuery, (snapshot) => {
         const usersList = document.querySelector('.chats-container');
@@ -61,110 +61,139 @@ async function loadChats() {
 
         snapshot.forEach((doc) => {
             const userData = doc.data();
-            const div = document.createElement('div');
-            div.className = 'chat-item';
-            div.innerHTML = `
-                <div class="chat-avatar">
-                    ${userData.photoURL ? 
-                        `<img src="${userData.photoURL}" alt="${userData.name}">` :
-                        `<div class="avatar-placeholder">${userData.name[0]}</div>`
-                    }
-                </div>
-                <div class="chat-info">
-                    <div class="chat-header">
-                        <h3>${userData.name}</h3>
-                        <span class="chat-function">${userData.fonction}</span>
+            // Ne pas afficher l'utilisateur actuel dans la liste
+            if (userData.email !== currentUser.email) {
+                const div = document.createElement('div');
+                div.className = 'chat-item';
+                div.innerHTML = `
+                    <div class="chat-avatar">
+                        ${userData.photoURL ? 
+                            `<img src="${userData.photoURL}" alt="${userData.name}">` :
+                            `<div class="avatar-placeholder">${userData.name[0]}</div>`
+                        }
                     </div>
-                    <div class="chat-status">
-                        ${userData.online ? 'En ligne' : 'Hors ligne'}
-                    </div>
-                </div>
-            `;
-
-            div.onclick = () => startChat(doc.id, userData);
-            usersList.appendChild(div);
-        });
-    });
-}
-
-// Démarrer une conversation
-async function startChat(userId, userData) {
-    currentChat = userId;
-    
-    // Mettre à jour l'interface
-    document.querySelector('.chat-header h2').textContent = userData.name;
-    document.querySelector('.chat-header .status').textContent = 
-        userData.online ? 'En ligne' : 'Hors ligne';
-    
-    // Charger les messages
-    loadMessages(userId);
-}
-
-// Charger les messages
-function loadMessages(chatWithId) {
-    const messagesQuery = query(
-        collection(db, 'messages'),
-        where('participants', 'array-contains', [currentUser.uid, chatWithId].sort().join('_')),
-        orderBy('timestamp', 'asc')
-    );
-
-    const messagesContainer = document.querySelector('.messages-container');
-    messagesContainer.innerHTML = '';
-
-    onSnapshot(messagesQuery, (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added') {
-                const message = change.doc.data();
-                const messageEl = document.createElement('div');
-                messageEl.className = `message ${
-                    message.senderId === currentUser.uid ? 'sent' : 'received'
-                }`;
-                
-                messageEl.innerHTML = `
-                    <div class="message-content">${message.text}</div>
-                    <div class="message-time">
-                        ${formatTime(message.timestamp)}
+                    <div class="chat-info">
+                        <div class="chat-header">
+                            <h3>${userData.name}</h3>
+                            <span class="chat-function">${userData.fonction}</span>
+                        </div>
+                        <div class="chat-status ${userData.online ? 'online' : 'offline'}">
+                            ${userData.online ? 'En ligne' : 'Hors ligne'}
+                        </div>
                     </div>
                 `;
-                
-                messagesContainer.appendChild(messageEl);
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+                div.onclick = () => startChat(doc.id, userData);
+                usersList.appendChild(div);
             }
         });
     });
 }
 
-// Envoyer un message
-document.querySelector('.message-input')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const input = e.target.querySelector('input');
-    const message = input.value.trim();
-    
-    if (message && currentChat) {
-        try {
-            const messageData = {
-                text: message,
-                senderId: currentUser.uid,
-                participants: [currentUser.uid, currentChat].sort().join('_'),
-                timestamp: serverTimestamp()
-            };
-
-            await addDoc(collection(db, 'messages'), messageData);
-            input.value = '';
-        } catch (error) {
-            console.error('Erreur envoi message:', error);
-            alert('Erreur lors de l\'envoi du message');
-        }
+// Gestion de la déconnexion
+window.addEventListener('beforeunload', async () => {
+    if (auth.currentUser) {
+        const userDoc = doc(db, 'users', auth.currentUser.uid);
+        await setDoc(userDoc, {
+            online: false,
+            lastSeen: serverTimestamp()
+        }, { merge: true });
     }
 });
 
-// Formater l'heure
-function formatTime(timestamp) {
-    if (!timestamp) return '';
-    const date = timestamp.toDate();
-    return date.toLocaleTimeString('fr-FR', {
-        hour: '2-digit',
-        minute: '2-digit'
+// Ajout d'un écouteur pour la déconnexion manuelle
+window.addEventListener('unload', async () => {
+    if (auth.currentUser) {
+        const userDoc = doc(db, 'users', auth.currentUser.uid);
+        await setDoc(userDoc, {
+            online: false,
+            lastSeen: serverTimestamp()
+        }, { merge: true });
+    }
+});
+
+// Déclaration de la fonction startChat
+async function startChat(userId, userData) {
+    currentChat = {
+        userId: userId,
+        userData: userData
+    };
+
+    // Mise à jour de l'affichage du nom du contact dans l'en-tête
+    document.querySelector('.contact-name').textContent = userData.name;
+
+    // Charger les messages de la conversation
+    loadMessages();
+}
+
+async function loadMessages() {
+    const chatContainer = document.querySelector('.chat');
+    chatContainer.innerHTML = ''; // Clear existing messages
+
+    const chatId = getChatId(currentUser.uid, currentChat.userId);
+    const messagesQuery = query(collection(db, 'chats', chatId, 'messages'));
+
+    onSnapshot(messagesQuery, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === "added") {
+                const message = change.doc.data();
+                displayMessage(message);
+            }
+        });
+        chatContainer.scrollTop = chatContainer.scrollHeight; // Scroll to bottom
     });
+}
+
+function getChatId(user1, user2) {
+    if (user1 < user2) {
+        return user1 + "_" + user2;
+    } else {
+        return user2 + "_" + user1;
+    }
+}
+
+function displayMessage(message) {
+    const chatContainer = document.querySelector('.chat');
+    const messageElement = document.createElement('div');
+    messageElement.classList.add('message');
+    messageElement.classList.add(message.senderId === currentUser.uid ? 'sent' : 'received');
+
+    messageElement.innerHTML = `
+        <div class="message-content">
+            ${message.text}
+        </div>
+        <div class="message-time">
+            ${formatTimestamp(message.timestamp)}
+        </div>
+    `;
+
+    chatContainer.appendChild(messageElement);
+}
+
+function formatTimestamp(timestamp) {
+    const date = timestamp.toDate();
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+}
+
+document.querySelector('.send-button').addEventListener('click', sendMessage);
+
+async function sendMessage() {
+    const messageInput = document.querySelector('.message-input');
+    const text = messageInput.value.trim();
+
+    if (text !== '') {
+        const chatId = getChatId(currentUser.uid, currentChat.userId);
+        const messagesCollection = collection(db, 'chats', chatId, 'messages');
+
+        await setDoc(doc(messagesCollection), {
+            senderId: currentUser.uid,
+            receiverId: currentChat.userId,
+            text: text,
+            timestamp: serverTimestamp()
+        });
+
+        messageInput.value = '';
+    }
 }
