@@ -202,7 +202,29 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-
+// Dans votre chat.js, ajoutez cet événement pour le bouton d'envoi
+const sendBtn = document.querySelector('.send-btn');
+if (sendBtn) {
+    sendBtn.addEventListener('click', async () => {
+        const messageInput = document.querySelector('.message-input input');
+        if (messageInput && currentChat && messageInput.value.trim()) {
+            try {
+                const chatId = [currentUser.uid, currentChat.userId].sort().join('_');
+                await db.collection('messages').add({
+                    chatId: chatId,
+                    text: messageInput.value.trim(),
+                    senderId: currentUser.uid,
+                    receiverId: currentChat.userId,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                messageInput.value = '';
+            } catch (error) {
+                console.error("Erreur envoi message:", error);
+                alert("Erreur d'envoi du message");
+            }
+        }
+    });
+}
     // Fonction pour charger les messages
     function loadMessages(userId) {
         const container = document.querySelector('.messages-container');

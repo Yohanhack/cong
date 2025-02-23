@@ -42,7 +42,7 @@ body {
 .main-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     padding: 8px 16px;
     background: var(--header-dark);
 }
@@ -51,45 +51,6 @@ body {
     font-size: 20px;
     font-weight: 500;
     color: var(--text-primary);
-}
-
-.menu-btn, .search-btn {
-    background: none;
-    border: none;
-    color: var(--text-primary);
-    font-size: 24px;
-    padding: 8px;
-    cursor: pointer;
-}
-
-/* Container des stories */
-.stories-container {
-    display: flex;
-    overflow-x: auto;
-    padding: 12px;
-    gap: 12px;
-    background: var(--bg-dark);
-    border-bottom: 1px solid var(--divider);
-}
-
-.story-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-}
-
-.story-avatar {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    border: 2px solid var(--accent-blue);
-    padding: 3px;
-    background: var(--bg-dark);
-}
-
-.add-story .story-avatar {
-    border-color: var(--text-secondary);
 }
 
 /* Container des conversations */
@@ -103,6 +64,7 @@ body {
     padding: 10px 16px;
     gap: 12px;
     border-bottom: 1px solid var(--divider);
+    cursor: pointer;
 }
 
 .chat-item:active {
@@ -134,27 +96,13 @@ body {
     color: var(--text-primary);
 }
 
-.chat-time {
-    font-size: 12px;
+.chat-status {
+    font-size: 13px;
     color: var(--text-secondary);
 }
 
-.chat-last-message {
-    font-size: 14px;
-    color: var(--text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.chat-badge {
-    background: var(--accent-blue);
-    color: white;
-    font-size: 14px;
-    padding: 1px 6px;
-    border-radius: 12px;
-    min-width: 24px;
-    text-align: center;
+.chat-status.online {
+    color: #4CAF50;
 }
 
 /* Page de conversation */
@@ -172,6 +120,7 @@ body {
     color: var(--text-primary);
     font-size: 24px;
     padding: 8px;
+    cursor: pointer;
 }
 
 .chat-info {
@@ -187,19 +136,6 @@ body {
     border-radius: 50%;
 }
 
-.chat-status {
-    font-size: 13px;
-    color: var(--text-secondary);
-}
-
-.chat-actions button {
-    background: none;
-    border: none;
-    color: var(--text-primary);
-    font-size: 20px;
-    padding: 8px;
-}
-
 /* Messages */
 .messages-container {
     flex: 1;
@@ -209,7 +145,6 @@ body {
     flex-direction: column;
     gap: 2px;
     background: var(--bg-dark);
-    background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 24c6.627 0 12-5.373 12-12S18.627 0 12 0 0 5.373 0 12s5.373 12 12 12z' fill='rgba(255, 255, 255, 0.02)'/%3E%3C/svg%3E");
 }
 
 .message {
@@ -239,20 +174,6 @@ body {
     display: inline-block;
 }
 
-.message.sent .message-time::after {
-    content: "✓✓";
-    margin-left: 4px;
-    font-size: 11px;
-}
-
-/* Date separators */
-.date-separator {
-    text-align: center;
-    margin: 16px 0;
-    color: var(--text-secondary);
-    font-size: 14px;
-}
-
 /* Input zone */
 .message-input {
     display: flex;
@@ -277,29 +198,19 @@ body {
     color: var(--text-secondary);
 }
 
-.message-input button {
-    background: none;
+.send-btn {
+    background: var(--accent-blue);
     border: none;
-    color: var(--text-secondary);
-    font-size: 24px;
-    padding: 8px;
-    cursor: pointer;
-}
-
-/* Call messages */
-.call-message {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    background: var(--message-received);
-    border-radius: 12px;
-    margin: 4px 0;
-    color: var(--text-secondary);
-}
-
-.call-message .call-icon {
+    color: var(--text-primary);
     font-size: 20px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.send-btn:hover {
+    background: var(--message-sent);
 }
 
 /* Scrollbar */
@@ -314,21 +225,4 @@ body {
 ::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.2);
     border-radius: 3px;
-}
-
-/* Navigation bottom */
-.bottom-nav {
-    display: flex;
-    justify-content: space-around;
-    padding: 8px 0;
-    background: var(--header-dark);
-    border-top: 1px solid var(--divider);
-}
-
-.bottom-nav button {
-    background: none;
-    border: none;
-    color: var(--text-primary);
-    font-size: 24px;
-    padding: 8px 16px;
 }
