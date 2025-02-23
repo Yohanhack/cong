@@ -1,9 +1,9 @@
 // Attendre que le DOM soit chargé
 document.addEventListener('DOMContentLoaded', function() {
-    // Import Firebase (assuming you're using modular imports)
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-    import { getFirestore, collection, doc, getDoc, updateDoc, onSnapshot, addDoc, query, where, orderBy, serverTimestamp, FieldValue } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    // Import Firebase (assurez-vous que Firebase est inclus dans votre HTML)
+    // <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    // <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js"></script>
+    // <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
 
     // Configuration Firebase
     const firebaseConfig = {
@@ -16,167 +16,168 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     // Initialiser Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
     let currentUser = null;
     let currentChat = null;
 
-    // Vérification de l'authentification
-    onAuthStateChanged(auth, async (user) => {
-        console.log("Auth state changed:", user ? user.email : 'No user');
-        
+    console.log('Firebase initialisé');
+
+    // Vérifier l'authentification et charger les utilisateurs
+    auth.onAuthStateChanged(async (user) => {
+        console.log('État de l\'authentification changé:', user?.email);
+
         if (user) {
             try {
-                // Charger les informations de l'utilisateur depuis Firestore
-                const userDocRef = doc(db, 'users', user.uid);
-                const userDoc = await getDoc(userDocRef);
+                // Charger les données de l'utilisateur
+                const userDoc = await db.collection('users').doc(user.uid).get();
                 
-                if (userDoc.exists()) {
+                if (userDoc.exists) {
                     currentUser = { ...user, ...userDoc.data() };
-                    console.log("User data loaded:", currentUser);
+                    console.log('Données utilisateur chargées:', currentUser);
 
                     // Mettre à jour le statut en ligne
-                    await updateDoc(doc(db, 'users', user.uid), {
+                    await db.collection('users').doc(user.uid).update({
                         online: true,
-                        lastSeen: serverTimestamp()
+                        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
                     });
 
-                    // Charger les conversations
-                    loadChats();
+                    // Charger tous les utilisateurs
+                    loadUsers();
                 } else {
-                    console.error("User document doesn't exist");
-                    signOut(auth);
+                    console.error('Document utilisateur inexistant');
+                    auth.signOut();
                 }
             } catch (error) {
-                console.error("Error loading user data:", error);
-                signOut(auth);
+                console.error('Erreur lors du chargement des données:', error);
             }
         } else {
-            window.location.replace('login.html');
+            window.location.href = 'login.html';
         }
     });
 
     // Charger tous les utilisateurs
-    function loadChats() {
-        console.log("Loading chats...");
-        
-        onSnapshot(collection(db, 'users'), (snapshot) => {
+    function loadUsers() {
+        console.log('Chargement des utilisateurs...');
+
+        // Écouter les changements dans la collection users
+        db.collection('users').onSnapshot((snapshot) => {
             const usersList = document.querySelector('.chats-container');
-            usersList.innerHTML = '';
-            
-            console.log("Users snapshot size:", snapshot.size);
+            usersList.innerHTML = ''; // Vider la liste
+
+            console.log('Nombre d\'utilisateurs:', snapshot.size);
 
             snapshot.forEach((doc) => {
                 const userData = doc.data();
-                console.log("Processing user:", userData.email);
-                
+                console.log('Traitement utilisateur:', userData.email);
+
+                // Ne pas afficher l'utilisateur actuel
                 if (userData.uid !== currentUser.uid) {
                     const div = document.createElement('div');
                     div.className = 'chat-item';
                     div.innerHTML = `
-                        <div class="chat-avatar">
-                            ${userData.photoURL ? 
-                                `<img src="${userData.photoURL}" alt="${userData.name}">` :
-                                `<div class="avatar-placeholder">${userData.name[0].toUpperCase()}</div>`
-                            }
-                        </div>
-                        <div class="chat-info">
+                        <img class="chat-avatar" src="${userData.photoURL || 'https://via.placeholder.com/50'}" alt="${userData.name}">
+                        <div class="chat-content">
                             <div class="chat-header">
-                                <h3>${userData.name}</h3>
-                                <span class="chat-function">${userData.fonction}</span>
+                                <span class="chat-name">${userData.name}</span>
+                                <span class="chat-status ${userData.online ? 'online' : 'offline'}">
+                                    ${userData.online ? '🟢 En ligne' : '⚫ Hors ligne'}
+                                </span>
                             </div>
-                            <div class="chat-status ${userData.online ? 'online' : 'offline'}">
-                                ${userData.online ? 'En ligne' : 'Hors ligne'}
+                            <div class="chat-info">
+                                <span class="chat-function">${userData.fonction}</span>
                             </div>
                         </div>
                     `;
 
-                    div.onclick = () => startChat(doc.id, userData);
+                    // Ajouter l'événement de clic
+                    div.addEventListener('click', () => startChat(doc.id, userData));
                     usersList.appendChild(div);
                 }
             });
-        }, error => {
-            console.error("Error loading users:", error);
+        }, (error) => {
+            console.error('Erreur lors du chargement des utilisateurs:', error);
         });
     }
 
     // Démarrer une conversation
     function startChat(userId, userData) {
+        console.log('Démarrage conversation avec:', userData.name);
         currentChat = { userId, userData };
-        
+
         // Basculer vers la page de chat
         document.getElementById('mainPage').classList.remove('active');
         document.getElementById('chatPage').classList.add('active');
-        
+
         // Mettre à jour l'interface
         document.querySelector('.chat-name').textContent = userData.name;
         document.querySelector('.chat-status').textContent = 
-            userData.online ? 'En ligne' : 'Hors ligne';
-        
+            userData.online ? '🟢 En ligne' : '⚫ Hors ligne';
+
         // Charger les messages
         loadMessages(userId);
     }
 
     // Charger les messages
     function loadMessages(chatWithId) {
+        console.log('Chargement des messages...');
         const messagesContainer = document.querySelector('.messages-container');
         messagesContainer.innerHTML = '';
 
-        // Créer un ID unique pour la conversation
         const chatId = [currentUser.uid, chatWithId].sort().join('_');
 
-        const messagesRef = collection(db, 'messages');
-        const q = query(messagesRef, where('chatId', '==', chatId), orderBy('timestamp', 'asc'));
-
-        onSnapshot(q, (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-                if (change.type === 'added') {
-                    const message = change.doc.data();
-                    const messageEl = document.createElement('div');
-                    messageEl.className = `message ${
-                        message.senderId === currentUser.uid ? 'sent' : 'received'
-                    }`;
-                    
-                    messageEl.innerHTML = `
-                        <div class="message-content">${message.text}</div>
-                        <div class="message-time">
-                            ${formatTime(message.timestamp)}
-                        </div>
-                    `;
-                    
-                    messagesContainer.appendChild(messageEl);
-                }
+        db.collection('messages')
+            .where('chatId', '==', chatId)
+            .orderBy('timestamp', 'asc')
+            .onSnapshot((snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === 'added') {
+                        const message = change.doc.data();
+                        const messageEl = document.createElement('div');
+                        messageEl.className = `message ${message.senderId === currentUser.uid ? 'sent' : 'received'}`;
+                        
+                        messageEl.innerHTML = `
+                            <div class="message-content">${message.text}</div>
+                            <div class="message-time">
+                                ${formatTime(message.timestamp)}
+                            </div>
+                        `;
+                        
+                        messagesContainer.appendChild(messageEl);
+                    }
+                });
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
             });
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }, error => {
-            console.error("Error loading messages:", error);
-        });
     }
 
-    // Envoyer un message
+    // Gérer l'envoi de messages
     const messageInput = document.querySelector('.message-input input');
     if (messageInput) {
         messageInput.addEventListener('keypress', async (e) => {
             if (e.key === 'Enter' && currentChat) {
-                const message = e.target.value.trim();
+                const text = e.target.value.trim();
                 
-                if (message) {
-                    const chatId = [currentUser.uid, currentChat.userId].sort().join('_');
-                    
+                if (text) {
                     try {
-                        await addDoc(collection(db, 'messages'), {
+                        const chatId = [currentUser.uid, currentChat.userId].sort().join('_');
+                        
+                        await db.collection('messages').add({
                             chatId: chatId,
-                            text: message,
+                            text: text,
                             senderId: currentUser.uid,
                             receiverId: currentChat.userId,
-                            timestamp: serverTimestamp()
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
                         });
                         
                         e.target.value = '';
+                        console.log('Message envoyé avec succès');
                     } catch (error) {
-                        console.error('Erreur envoi message:', error);
+                        console.error('Erreur lors de l\'envoi du message:', error);
                         alert('Erreur lors de l\'envoi du message');
                     }
                 }
@@ -184,7 +185,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Gestion du bouton retour
+    // Gérer le bouton retour
     const backBtn = document.querySelector('.back-btn');
     if (backBtn) {
         backBtn.addEventListener('click', () => {
@@ -204,16 +205,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Gestion de la déconnexion
+    // Gérer la déconnexion
     window.addEventListener('beforeunload', async () => {
         if (currentUser) {
             try {
-                await updateDoc(doc(db, 'users', currentUser.uid), {
+                await db.collection('users').doc(currentUser.uid).update({
                     online: false,
-                    lastSeen: serverTimestamp()
+                    lastSeen: firebase.firestore.FieldValue.serverTimestamp()
                 });
+                console.log('Statut hors ligne mis à jour');
             } catch (error) {
-                console.error("Error updating online status:", error);
+                console.error('Erreur lors de la mise à jour du statut:', error);
             }
         }
     });
