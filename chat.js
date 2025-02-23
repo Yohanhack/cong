@@ -1,4 +1,12 @@
+// Attendre que le DOM soit chargé
 document.addEventListener('DOMContentLoaded', function() {
+    // Import Firebase (assurez-vous que Firebase est inclus dans votre HTML)
+    // <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    // <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    // <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    // <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
+    // <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging-compat.js"></script>
+
     // Configuration Firebase
     const firebaseConfig = {
         apiKey: "AIzaSyCmm3_mIQijkfcqm9Z3TM2dscjgLPpx4x0",
@@ -10,95 +18,100 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     // Initialiser Firebase
-    try {
+    if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
-    } catch (e) {
-        console.error("Firebase initialization error:", e);
     }
+
     const auth = firebase.auth();
     const db = firebase.firestore();
+
+    // Activer la persistance pour une meilleure expérience hors ligne
+    db.enablePersistence()
+        .catch((err) => {
+            console.error("Erreur persistance:", err);
+        });
 
     let currentUser = null;
     let currentChat = null;
 
-    // Vérification de l'authentification
+    // Vérifier si l'utilisateur est déjà connecté
     auth.onAuthStateChanged(async (user) => {
-        console.log('État de l\'authentification changé:', user?.email);
+        console.log("État auth changé:", user?.email);
 
         if (!user) {
-            console.log('Redirection vers login...');
             window.location.href = 'login.html';
             return;
         }
 
         try {
-            // Charger les données de l'utilisateur
+            // Charger les données utilisateur
             const userDoc = await db.collection('users').doc(user.uid).get();
             
             if (!userDoc.exists) {
-                console.error('Document utilisateur inexistant');
+                console.error("Utilisateur non trouvé dans Firestore");
                 auth.signOut();
                 return;
             }
 
-            currentUser = { ...user, ...userDoc.data() };
-            console.log('Données utilisateur chargées:', currentUser);
+            currentUser = {
+                uid: user.uid,
+                email: user.email,
+                ...userDoc.data()
+            };
 
-            // Mettre à jour le statut en ligne
+            console.log("Utilisateur chargé:", currentUser);
+
+            // Mettre à jour le statut
             await db.collection('users').doc(user.uid).update({
                 online: true,
                 lastSeen: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            // S'assurer que le conteneur principal est visible
-            document.getElementById('mainPage').classList.add('active');
-            document.getElementById('chatPage').classList.remove('active');
-
-            // Charger les utilisateurs
-            loadUsers();
+            // Charger la liste des utilisateurs
+            loadUsersList();
 
         } catch (error) {
-            console.error('Erreur:', error);
-            alert('Erreur de chargement des données');
+            console.error("Erreur chargement:", error);
+            alert("Erreur de chargement des données");
         }
     });
 
-    function loadUsers() {
-        console.log('Chargement des utilisateurs...');
-        const usersList = document.querySelector('.chats-container');
-        
-        if (!usersList) {
-            console.error('Container des chats non trouvé');
+    function loadUsersList() {
+        const container = document.querySelector('.chats-container');
+        if (!container) {
+            console.error("Container non trouvé");
             return;
         }
 
-        // Vider la liste
-        usersList.innerHTML = '';
+        // Vider le container
+        container.innerHTML = '';
 
-        // Observer les changements dans la collection users
-        db.collection('users').onSnapshot((snapshot) => {
-            console.log('Nombre d\'utilisateurs:', snapshot.size);
-            
-            snapshot.forEach((doc) => {
-                const userData = doc.data();
-                console.log('Traitement utilisateur:', userData.email);
-
-                if (userData.uid !== currentUser.uid) {
-                    // Créer l'élément de chat
-                    const chatItem = document.createElement('div');
-                    chatItem.className = 'chat-item';
+        // Écouter les changements dans la collection users
+        const unsubscribe = db.collection('users')
+            .orderBy('lastSeen', 'desc')
+            .onSnapshot((snapshot) => {
+                console.log("Mise à jour users, nombre:", snapshot.size);
+                
+                snapshot.forEach((doc) => {
+                    const userData = doc.data();
                     
-                    // Définir le HTML
-                    chatItem.innerHTML = `
+                    // Ne pas afficher l'utilisateur actuel
+                    if (userData.uid === currentUser.uid) return;
+
+                    console.log("Ajout utilisateur:", userData.email);
+
+                    const div = document.createElement('div');
+                    div.className = 'chat-item';
+                    div.innerHTML = `
                         <div class="chat-avatar">
                             ${userData.photoURL ? 
-                                `<img src="${userData.photoURL}" alt="${userData.name}">` :
+                                `<img src="${userData.photoURL}" alt="${userData.name}" class="chat-avatar">` :
                                 `<div class="avatar-placeholder">${userData.name ? userData.name[0].toUpperCase() : '?'}</div>`
                             }
                         </div>
                         <div class="chat-content">
                             <div class="chat-header">
-                                <h3 class="chat-name">${userData.name || 'Sans nom'}</h3>
+                                <span class="chat-name">${userData.name || 'Sans nom'}</span>
                                 <span class="chat-function">${userData.fonction || ''}</span>
                             </div>
                             <div class="chat-status ${userData.online ? 'online' : 'offline'}">
@@ -107,55 +120,95 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     `;
 
-                    // Ajouter l'événement de clic
-                    chatItem.addEventListener('click', () => {
-                        startChat(doc.id, userData);
-                    });
-
-                    // Ajouter à la liste
-                    usersList.appendChild(chatItem);
-                }
+                    div.onclick = () => startChat(doc.id, userData);
+                    container.appendChild(div);
+                });
+            }, (error) => {
+                console.error("Erreur snapshot:", error);
             });
-        }, (error) => {
-            console.error('Erreur de chargement des utilisateurs:', error);
-            alert('Erreur de chargement des utilisateurs');
-        });
+
+        // Nettoyer l'écouteur quand la page est fermée
+        window.addEventListener('unload', () => unsubscribe());
     }
 
     function startChat(userId, userData) {
         currentChat = { userId, userData };
         
-        // Basculer l'affichage
-        document.getElementById('mainPage').classList.remove('active');
-        document.getElementById('chatPage').classList.add('active');
+        const mainPage = document.getElementById('mainPage');
+        const chatPage = document.getElementById('chatPage');
         
-        // Mettre à jour l'interface
-        const chatName = document.querySelector('.chat-name');
-        const chatStatus = document.querySelector('.chat-status');
-        
-        if (chatName) chatName.textContent = userData.name || 'Sans nom';
-        if (chatStatus) chatStatus.textContent = userData.online ? '🟢 En ligne' : '⚫ Hors ligne';
-        
-        // Charger les messages
-        loadMessages(userId);
+        if (mainPage && chatPage) {
+            mainPage.classList.remove('active');
+            chatPage.classList.add('active');
+            
+            const nameEl = chatPage.querySelector('.chat-name');
+            const statusEl = chatPage.querySelector('.chat-status');
+            
+            if (nameEl) nameEl.textContent = userData.name || 'Sans nom';
+            if (statusEl) statusEl.textContent = userData.online ? '🟢 En ligne' : '⚫ Hors ligne';
+            
+            loadMessages(userId);
+        }
     }
 
     // Gérer le bouton retour
     const backBtn = document.querySelector('.back-btn');
     if (backBtn) {
         backBtn.addEventListener('click', () => {
-            document.getElementById('mainPage').classList.add('active');
-            document.getElementById('chatPage').classList.remove('active');
-            currentChat = null;
+            const mainPage = document.getElementById('mainPage');
+            const chatPage = document.getElementById('chatPage');
+            
+            if (mainPage && chatPage) {
+                chatPage.classList.remove('active');
+                mainPage.classList.add('active');
+                currentChat = null;
+            }
         });
     }
 
-    function loadMessages(userId) {
-        console.log(`Chargement des messages pour l'utilisateur ${userId}...`);
-        const messagesContainer = document.querySelector('.messages-container');
-        if (!messagesContainer) return;
+    // Gérer l'envoi de messages
+    const messageInput = document.querySelector('.message-input input');
+    if (messageInput) {
+        messageInput.addEventListener('keypress', async (e) => {
+            if (e.key === 'Enter' && currentChat && e.target.value.trim()) {
+                try {
+                    const chatId = [currentUser.uid, currentChat.userId].sort().join('_');
+                    await db.collection('messages').add({
+                        chatId: chatId,
+                        text: e.target.value.trim(),
+                        senderId: currentUser.uid,
+                        receiverId: currentChat.userId,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    e.target.value = '';
+                } catch (error) {
+                    console.error("Erreur envoi message:", error);
+                    alert("Erreur d'envoi du message");
+                }
+            }
+        });
+    }
 
-        messagesContainer.innerHTML = '';
+    // Gérer la déconnexion
+    window.addEventListener('beforeunload', async (e) => {
+        if (currentUser) {
+            try {
+                await db.collection('users').doc(currentUser.uid).update({
+                    online: false,
+                    lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (error) {
+                console.error("Erreur déconnexion:", error);
+            }
+        }
+    });
+
+    // Fonction pour charger les messages
+    function loadMessages(userId) {
+        const container = document.querySelector('.messages-container');
+        if (!container) return;
+
+        container.innerHTML = '';
         const chatId = [currentUser.uid, userId].sort().join('_');
 
         db.collection('messages')
@@ -165,52 +218,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 snapshot.docChanges().forEach((change) => {
                     if (change.type === 'added') {
                         const message = change.doc.data();
-                        const messageEl = document.createElement('div');
-                        messageEl.className = `message ${
-                            message.senderId === currentUser.uid ? 'sent' : 'received'
-                        }`;
+                        const div = document.createElement('div');
+                        div.className = `message ${message.senderId === currentUser.uid ? 'sent' : 'received'}`;
                         
-                        messageEl.innerHTML = `
+                        div.innerHTML = `
                             <div class="message-content">${message.text}</div>
                             <div class="message-time">
                                 ${formatTime(message.timestamp)}
                             </div>
                         `;
                         
-                        messagesContainer.appendChild(messageEl);
-                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        container.appendChild(div);
+                        container.scrollTop = container.scrollHeight;
                     }
                 });
             });
-    }
-
-    // Gérer l'envoi de messages
-    const messageInput = document.querySelector('.message-input input');
-    if (messageInput) {
-        messageInput.addEventListener('keypress', async (e) => {
-            if (e.key === 'Enter' && currentChat) {
-                const text = e.target.value.trim();
-                
-                if (text) {
-                    try {
-                        const chatId = [currentUser.uid, currentChat.userId].sort().join('_');
-                        
-                        await db.collection('messages').add({
-                            chatId: chatId,
-                            text: text,
-                            senderId: currentUser.uid,
-                            receiverId: currentChat.userId,
-                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        
-                        e.target.value = '';
-                    } catch (error) {
-                        console.error('Erreur envoi message:', error);
-                        alert('Erreur lors de l\'envoi du message');
-                    }
-                }
-            }
-        });
     }
 
     function formatTime(timestamp) {
@@ -221,18 +243,4 @@ document.addEventListener('DOMContentLoaded', function() {
             minute: '2-digit'
         });
     }
-
-    // Gérer la déconnexion
-    window.addEventListener('beforeunload', async () => {
-        if (currentUser) {
-            try {
-                await db.collection('users').doc(currentUser.uid).update({
-                    online: false,
-                    lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            } catch (error) {
-                console.error('Erreur mise à jour statut:', error);
-            }
-        }
-    });
 });
